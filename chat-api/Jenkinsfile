@@ -58,14 +58,6 @@ spec:
     volumeMounts:
     - name: workspace-volume
       mountPath: /home/jenkins/agent
-  - name: jnlp
-    image: jenkins/inbound-agent:3309.v27b_9314fd1a_4-1
-    env:
-    - name: JENKINS_AGENT_WORKDIR
-      value: /home/jenkins/agent
-    volumeMounts:
-    - name: workspace-volume
-      mountPath: /home/jenkins/agent
 """
         }
       }
