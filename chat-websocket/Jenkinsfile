@@ -74,7 +74,7 @@ spec:
                 --dry-run=client -o yaml | kubectl apply -f -
 
               # 2) 템플릿 치환
-              cp infra/cicd/job-kaniko-template.yaml /tmp/job.yaml
+              cp infra/job-kaniko-template.yaml /tmp/job.yaml
               sed -i "s|__ACCOUNT_ID__|${ACCOUNT_ID}|g"                   /tmp/job.yaml
               sed -i "s|__AWS_REGION__|${AWS_REGION}|g"                   /tmp/job.yaml
               sed -i "s|__ECR_REPO__|${ECR_REPO}|g"                       /tmp/job.yaml
