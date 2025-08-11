@@ -13,7 +13,7 @@ pipeline {
     REPO         = 'backend-api-websocket'          // 깃 repo
     BUILD_CONTEXT= '/workspace'                     // 루트 컨텍스트
     DOCKERFILE   = 'Dockerfile.websocket'           // 루트의 Dockerfile
-    GIT_BASIC_ID = 'mustbechangeid'                 // Jenkins creds (username+password=PAT)
+    GIT_BASIC_ID = 'jenkinstoken'                 // Jenkins creds (username+password=PAT)
   }
   triggers { githubPush() }
 
@@ -46,7 +46,7 @@ spec:
                                             passwordVariable: 'GH_PASS')]) {
             sh '''
               set -e
-              SHORT_SHA=$(echo "${GIT_COMMIT:-${BRANCH_NAME:-main}}" | cut -c1-7)
+              SHORT_SHA=$(echo "${GIT_COMMIT:-${BRANCH_NAME:-master}}" | cut -c1-7)
               IMAGE_TAG="build-${BUILD_NUMBER}-${SHORT_SHA}"
               GH_SECRET="gh-basic-ci-${BUILD_NUMBER}"
 
@@ -64,7 +64,7 @@ spec:
               sed -i "s|__ORG__|${ORG}|g"                                 /tmp/job.yaml
               sed -i "s|__REPO__|${REPO}|g"                               /tmp/job.yaml
               sed -i "s|__IMAGE_TAG__|${IMAGE_TAG}|g"                     /tmp/job.yaml
-              sed -i "s|__GIT_REF__|${GIT_COMMIT:-${BRANCH_NAME:-main}}|g" /tmp/job.yaml
+              sed -i "s|__GIT_REF__|${GIT_COMMIT:-${BRANCH_NAME:-master}}|g" /tmp/job.yaml
               sed -i "s|__GH_BASIC_SECRET__|${GH_SECRET}|g"               /tmp/job.yaml
               sed -i "s|__BUILD_CONTEXT__|${BUILD_CONTEXT}|g"             /tmp/job.yaml
               sed -i "s|__DOCKERFILE__|${DOCKERFILE}|g"                   /tmp/job.yaml
