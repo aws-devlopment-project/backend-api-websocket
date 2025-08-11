@@ -60,28 +60,28 @@ spec:
           volumeMounts:
             - { name: workspace, mountPath: /workspace }
 
-containers:
-  - name: kaniko
-    image: gcr.io/kaniko-project/executor:v1.23.x   # latest 대신 고정 권장
-    imagePullPolicy: IfNotPresent
-    args:
-      - --context=__BUILD_CONTEXT__
-      - --dockerfile=__DOCKERFILE__
-      - --destination=__ACCOUNT_ID__.dkr.ecr.__AWS_REGION__.amazonaws.com/__ECR_REPO__:__IMAGE_TAG__
-      - --destination=__ACCOUNT_ID__.dkr.ecr.__AWS_REGION__.amazonaws.com/__ECR_REPO__:latest
-      - --cache=true
-      - --cache-repo=__ACCOUNT_ID__.dkr.ecr.__AWS_REGION__.amazonaws.com/__ECR_REPO__:buildcache
-      - --snapshotMode=redo
-      - --verbosity=info
-    env:
-      - { name: AWS_REGION, value: "__AWS_REGION__" }
-      - { name: ACCOUNT_ID, value: "__ACCOUNT_ID__" }
-      - { name: ECR_REPO,  value: "__ECR_REPO__" }
-      - { name: IMAGE_TAG, value: "__IMAGE_TAG__" }
-      - { name: GIT_REF,   value: "__GIT_REF__" }
-    resources:
-      requests: { cpu: "512m", memory: "1Gi" }
-      limits:   { cpu: "2000m", memory: "4Gi" }
-    volumeMounts:
-      - { name: docker-config, mountPath: /kaniko/.docker }
-      - { name: workspace,     mountPath: /workspace }
+      containers:   # ← 반드시 template.spec 안에!
+        - name: kaniko
+          image: gcr.io/kaniko-project/executor:v1.23.2
+          imagePullPolicy: IfNotPresent
+          args:
+            - --context=__BUILD_CONTEXT__
+            - --dockerfile=__DOCKERFILE__
+            - --destination=__ACCOUNT_ID__.dkr.ecr.__AWS_REGION__.amazonaws.com/__ECR_REPO__:__IMAGE_TAG__
+            - --destination=__ACCOUNT_ID__.dkr.ecr.__AWS_REGION__.amazonaws.com/__ECR_REPO__:latest
+            - --cache=true
+            - --cache-repo=__ACCOUNT_ID__.dkr.ecr.__AWS_REGION__.amazonaws.com/__ECR_REPO__:buildcache
+            - --snapshotMode=redo
+            - --verbosity=info
+          env:
+            - { name: AWS_REGION, value: "__AWS_REGION__" }
+            - { name: ACCOUNT_ID, value: "__ACCOUNT_ID__" }
+            - { name: ECR_REPO,  value: "__ECR_REPO__" }
+            - { name: IMAGE_TAG, value: "__IMAGE_TAG__" }
+            - { name: GIT_REF,   value: "__GIT_REF__" }
+          resources:
+            requests: { cpu: "512m", memory: "1Gi" }
+            limits:   { cpu: "2000m", memory: "4Gi" }
+          volumeMounts:
+            - { name: docker-config, mountPath: /kaniko/.docker }
+            - { name: workspace,     mountPath: /workspace }
