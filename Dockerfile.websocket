@@ -1,54 +1,44 @@
-# 1) deps: Gradle 캐시 워밍업
+# 1) deps
 FROM gradle:8.4-jdk17-alpine AS deps
 WORKDIR /app
+# ★ /app 디렉터리를 gradle 유저가 쓸 수 있게
+RUN mkdir -p /app && chown -R gradle:gradle /app
 USER gradle
 
-# 자주 안 바뀌는 파일 먼저 복사
 COPY --chown=gradle:gradle gradlew settings.gradle build.gradle ./
 COPY --chown=gradle:gradle gradle/ gradle/
-
-# 필요한 모듈의 build.gradle만
 COPY --chown=gradle:gradle chat-core/build.gradle chat-core/
 COPY --chown=gradle:gradle chat-websocket/build.gradle chat-websocket/
 
-# wrapper/플러그인/메타 캐시 + 의존 메타 로딩
 RUN chmod +x gradlew \
  && ./gradlew --no-daemon help || true \
  && ./gradlew --no-daemon :chat-websocket:dependencies || true
 
-
-# 2) build: 실제 빌드 (메모리 제한)
+# 2) build
 FROM gradle:8.4-jdk17-alpine AS build
 WORKDIR /app
+# ★ 여기서도 꼭 권한 부여
+RUN mkdir -p /app && chown -R gradle:gradle /app
 USER gradle
 
-# deps 단계의 Gradle 캐시만 재사용 (핵심)
+# 캐시 재사용
 COPY --from=deps /home/gradle/.gradle /home/gradle/.gradle
 
-# 빌드에 필요한 소스만 복사
 COPY --chown=gradle:gradle gradlew settings.gradle build.gradle ./
 COPY --chown=gradle:gradle gradle/ gradle/
 COPY --chown=gradle:gradle chat-core/ chat-core/
 COPY --chown=gradle:gradle chat-websocket/ chat-websocket/
 
-# Kaniko 메모리 고려해서 그레이들 메모리/워커 수 제한
 ENV GRADLE_OPTS="-Xmx1024m -Dorg.gradle.workers.max=2"
 RUN chmod +x gradlew && ./gradlew --no-daemon :chat-websocket:build -x test
 
-# 3) runtime: 슬림 JRE + 헬스체크 동작 보장
-FROM eclipse-temurin:17-jre-alpine AS runtime
+# 3) runtime
+FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
-
-# HEALTHCHECK용 유틸
-RUN apk add --no-cache wget \
- && adduser -D -u 10001 app
-
+RUN apk add --no-cache wget && adduser -D -u 10001 app
 COPY --from=build /app/chat-websocket/build/libs/*-SNAPSHOT.jar /app/app.jar
 EXPOSE 9001
-
-
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
   CMD wget --spider -q http://localhost:9001/actuator/health || exit 1
-
 USER 10001
 ENTRYPOINT ["java","-jar","/app/app.jar"]

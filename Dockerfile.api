@@ -1,44 +1,44 @@
-
+# 1) deps
 FROM gradle:8.4-jdk17-alpine AS deps
 WORKDIR /app
+# ★ /app 디렉터리를 gradle 유저가 쓸 수 있게
+RUN mkdir -p /app && chown -R gradle:gradle /app
 USER gradle
-
 
 COPY --chown=gradle:gradle gradlew settings.gradle build.gradle ./
 COPY --chown=gradle:gradle gradle/ gradle/
-
 COPY --chown=gradle:gradle chat-core/build.gradle chat-core/
-COPY --chown=gradle:gradle chat-api/build.gradle chat-api/
-COPY --chown=gradle:gradle chat-websocket/build.gradle chat-websocket/
-
-
+COPY --chown=gradle:gradle chat-websocket/build.gradle chat-api/
 
 RUN chmod +x gradlew \
  && ./gradlew --no-daemon help || true \
  && ./gradlew --no-daemon :chat-api:dependencies || true
 
+# 2) build
 FROM gradle:8.4-jdk17-alpine AS build
 WORKDIR /app
+# ★ 여기서도 꼭 권한 부여
+RUN mkdir -p /app && chown -R gradle:gradle /app
 USER gradle
 
+# 캐시 재사용
 COPY --from=deps /home/gradle/.gradle /home/gradle/.gradle
 
+COPY --chown=gradle:gradle gradlew settings.gradle build.gradle ./
+COPY --chown=gradle:gradle gradle/ gradle/
 COPY --chown=gradle:gradle chat-core/ chat-core/
-COPY --chown=gradle:gradle chat-api/  chat-api/
+COPY --chown=gradle:gradle chat-api/ chat-api/
 
 ENV GRADLE_OPTS="-Xmx1024m -Dorg.gradle.workers.max=2"
-RUN ./gradlew --no-daemon :chat-api:build -x test
+RUN chmod +x gradlew && ./gradlew --no-daemon :chat-api:build -x test
 
-FROM eclipse-temurin:17-jre-alpine AS runtime
+# 3) runtime
+FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
-
-RUN apk add --no-cache wget
+RUN apk add --no-cache wget && adduser -D -u 10001 app
 COPY --from=build /app/chat-api/build/libs/*-SNAPSHOT.jar /app/app.jar
-EXPOSE 9000
-
-
+EXPOSE 9001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
-  CMD wget --spider -q http://localhost:9000/actuator/health || exit 1
-
+  CMD wget --spider -q http://localhost:9001/actuator/health || exit 1
 USER 10001
-ENTRYPOINT ["sh", "-c", "exec java -jar app.jar"]
+ENTRYPOINT ["java","-jar","/app/app.jar"]
