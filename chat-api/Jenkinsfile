@@ -41,11 +41,20 @@ spec:
     emptyDir: {}
   containers:
   - name: kubectl
-    image: lachlanevenson/k8s-kubectl:v1.29.2   # ↔ /bin/sh 보장
+    image: bitnami/kubectl:1.29      # ✅ 존재 확인된 태그
+    imagePullPolicy: IfNotPresent
     command: ['sleep']
-    args: ['infinity']                            # 안정 대기
+    args: ['infinity']               # 안정 대기
     tty: true
     workingDir: /home/jenkins/agent
+    volumeMounts:
+    - name: workspace-volume
+      mountPath: /home/jenkins/agent
+  - name: jnlp
+    image: jenkins/inbound-agent:3309.v27b_9314fd1a_4-1
+    env:
+    - name: JENKINS_AGENT_WORKDIR
+      value: /home/jenkins/agent
     volumeMounts:
     - name: workspace-volume
       mountPath: /home/jenkins/agent
