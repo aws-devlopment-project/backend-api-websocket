@@ -16,14 +16,28 @@ pipeline {
     DOCKERFILE   = 'Dockerfile.api'
     GIT_BASIC_ID = 'jenkinstoken'   // Jenkins Credentials (username+password=PAT)
   }
+    CACHE_REPO = "${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/chat-api-cache"
+
 
   triggers { githubPush() }
 
   stages {
-    stage('Checkout (for GIT_COMMIT)') {
-      agent any
-      steps { checkout scm }
-    }
+    stage('Checkout (shallow)') {
+  agent any
+  steps {
+    checkout([$class: 'GitSCM',
+      userRemoteConfigs: [[url: "https://github.com/${ORG}/${REPO}.git", credentialsId: "${GIT_BASIC_ID}"]],
+      branches: [[name: "*/master"]],
+      extensions: [
+        [$class: 'CloneOption', shallow: true, depth: 2, noTags: true, reference: ''],
+        [$class: 'SparseCheckoutPaths', sparseCheckoutPaths: [
+          [$class: 'SparseCheckoutPath', path: 'chat-api/'],
+          [$class: 'SparseCheckoutPath', path: 'infra/']
+        ]]
+      ]
+    ])
+  }
+}
 
     stage('Build & Push (Kaniko Job)') {
       agent {
