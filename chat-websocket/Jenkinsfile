@@ -9,11 +9,11 @@ pipeline {
   environment {
     AWS_REGION   = 'ap-northeast-2'
     ACCOUNT_ID   = '229816860374'
-    ECR_REPO     = 'chat-webscoket'
+    ECR_REPO     = 'chat-websocket'
     ORG          = 'aws-devlopment-project'
     REPO         = 'backend-api-websocket'
     BUILD_CONTEXT= '/workspace'
-    DOCKERFILE   = 'Dockerfile.webscoket'
+    DOCKERFILE   = 'Dockerfile.websocket'
     GIT_BASIC_ID = 'jenkinstoken'   // Jenkins Credentials (username+password=PAT)
   }
 
@@ -41,24 +41,15 @@ spec:
     emptyDir: {}
   containers:
   - name: kubectl
-    image: bitnami/kubectl:1.29        # ✅ 존재하는 태그
+    image: bitnami/kubectl:1.29      # ✅ 존재 확인된 태그
     imagePullPolicy: IfNotPresent
     command: ['sleep']
-    args: ['infinity']                  # 안정 대기
+    args: ['infinity']               # 안정 대기
     tty: true
     workingDir: /home/jenkins/agent
     volumeMounts:
     - name: workspace-volume
       mountPath: /home/jenkins/agent
-  - name: jnlp
-    image: jenkins/inbound-agent:3309.v27b_9314fd1a_4-1
-    env:
-    - name: JENKINS_AGENT_WORKDIR
-      value: /home/jenkins/agent
-    volumeMounts:
-    - name: workspace-volume
-      mountPath: /home/jenkins/agent
-
 """
         }
       }
