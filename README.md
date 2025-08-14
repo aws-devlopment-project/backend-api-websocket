@@ -29,14 +29,14 @@ spring:
         jwt:
           issuer-uri: ${ISSUER_URI:input_uri}
           jwk-set-uri: ${JWK_SET_URI:input_uri}
-        client-id: ${JWK_SET_URI:input_client_id}
+        client-id: ${CLIENT_ID:input_client_id}
 ```
 
 ---
 
 Open API 문서
-- Swagger UI: http://localhost:8080/swagger-ui.html
-- OpenAPI JSON 스펙: http://localhost:8080/api-docs
+- Swagger UI: http://localhost:9000/swagger-ui.html
+- OpenAPI JSON 스펙: http://localhost:9000/api-docs
 
 ---
 
