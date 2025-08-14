@@ -80,6 +80,12 @@ spec:
                 --from-literal=username="$GH_USER" \
                 --from-literal=password="$GH_PASS" \
                 --dry-run=client -o yaml | kubectl apply -f -
+              
+              # 2) GitHub Write-Back Secret 생성/갱신 (Argocd Image Updater)
+              kubectl -n cicd create secret generic argocd-image-updater-git \
+                --from-literal=username="$GH_USER" \
+                --from-literal=password="$GH_PASS" \
+                -o yaml --dry-run=client | kubectl apply -f -
 
               # 2) 템플릿 치환
               cp infra/job-kaniko-template.yaml /tmp/job.yaml
