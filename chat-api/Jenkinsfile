@@ -7,48 +7,40 @@ pipeline {
   }
 
   environment {
-    AWS_REGION    = 'ap-northeast-2'
-    ACCOUNT_ID    = '229816860374'
-    ECR_REPO      = 'chat-api'
-    ORG           = 'aws-devlopment-project'
-    REPO          = 'backend-api-websocket'
-    BUILD_CONTEXT = '/workspace'
-    DOCKERFILE    = 'Dockerfile.api'
-    K8S_NS        = 'cicd'
-    JOB_TEMPLATE  = 'job-kaniko-template.yaml'
-    GIT_BASIC_ID  = 'jenkinstoken'
+    AWS_REGION   = 'ap-northeast-2'
+    ACCOUNT_ID   = '229816860374'
+    ECR_REPO     = 'chat-api'
+    ORG          = 'aws-devlopment-project'
+    REPO         = 'backend-api-websocket'
+    BUILD_CONTEXT= '/workspace'
+    DOCKERFILE   = 'Dockerfile.api'
+    GIT_BASIC_ID = 'jenkinstoken'
   }
 
+  triggers { githubPush() }
+
   stages {
-    stage('Prepare') {
-      agent { label 'built-in' }
-      steps {
-        script {
-          sh 'git rev-parse HEAD >/dev/null 2>&1 || true'
-          env.SHORT_SHA = sh(returnStdout: true, script: 'echo "${GIT_COMMIT:-${BRANCH_NAME:-master}}" | cut -c1-7').trim()
-          env.IMAGE_TAG = "sha-${env.SHORT_SHA}"
-          env.GIT_REF   = sh(returnStdout:true, script:'git rev-parse --abbrev-ref HEAD || echo main').trim()
-          echo "IMAGE_TAG=${env.IMAGE_TAG}, GIT_REF=${env.GIT_REF}"
-        }
-      }
+    stage('Checkout (for GIT_COMMIT)') {
+      agent any
+      steps { checkout scm }
     }
 
-    stage('Ensure Write-Back Secret (for Image Updater)') {
+    stage('Ensure ArgoCD Image Updater GitHub Secret') {
       agent {
         kubernetes {
-          label "kubectl-agent-${env.BUILD_NUMBER}"
+          label 'kube-tools'
           defaultContainer 'kubectl'
-          namespace "${env.K8S_NS}"
           serviceAccount 'jenkins-sa'
           yaml """
 apiVersion: v1
 kind: Pod
 spec:
+  serviceAccountName: jenkins-sa
   containers:
   - name: kubectl
     image: bitnami/kubectl:1.29
-    command:
-    - cat
+    command: ['sleep']
+    args: ['infinity']
     tty: true
 """
         }
@@ -60,33 +52,39 @@ spec:
                                             passwordVariable: 'GH_PASS')]) {
             sh '''
               set -e
-              kubectl -n "$K8S_NS" create secret generic argocd-image-updater-git \
+              kubectl -n cicd create secret generic argocd-image-updater-git \
                 --from-literal=username="$GH_USER" \
                 --from-literal=password="$GH_PASS" \
-                -o yaml --dry-run=client | kubectl apply -f -
+                --dry-run=client -o yaml | kubectl apply -f -
             '''
           }
         }
       }
     }
 
-    stage('Build & Push via Kaniko Job') {
+    stage('Build & Push via Kaniko') {
       agent {
         kubernetes {
-          label "kubectl-agent-${env.BUILD_NUMBER}"
+          label 'kube-tools'
           defaultContainer 'kubectl'
-          namespace "${env.K8S_NS}"
           serviceAccount 'jenkins-sa'
           yaml """
 apiVersion: v1
 kind: Pod
 spec:
+  serviceAccountName: jenkins-sa
+  volumes:
+  - name: workspace-volume
+    emptyDir: {}
   containers:
   - name: kubectl
     image: bitnami/kubectl:1.29
-    command:
-    - cat
+    command: ['sleep']
+    args: ['infinity']
     tty: true
+    volumeMounts:
+    - name: workspace-volume
+      mountPath: /home/jenkins/agent
 """
         }
       }
@@ -97,30 +95,37 @@ spec:
                                             passwordVariable: 'GH_PASS')]) {
             sh '''
               set -e
+              SHORT_SHA=$(echo "${GIT_COMMIT:-${BRANCH_NAME:-master}}" | cut -c1-7)
+              IMAGE_TAG="sha-${SHORT_SHA}"
               GH_SECRET="gh-basic-ci-${BUILD_NUMBER}"
-              kubectl -n "$K8S_NS" create secret generic "$GH_SECRET" \
+
+              # 1) GitHub 자격증명 임시 Secret 생성
+              kubectl -n cicd create secret generic "$GH_SECRET" \
                 --from-literal=username="$GH_USER" \
                 --from-literal=password="$GH_PASS" \
-                -o yaml --dry-run=client | kubectl apply -f -
+                --dry-run=client -o yaml | kubectl apply -f -
 
-              sed -e 's|__AWS_REGION__|'"$AWS_REGION"'|g' \
-                  -e 's|__ACCOUNT_ID__|'"$ACCOUNT_ID"'|g' \
-                  -e 's|__ECR_REPO__|'"$ECR_REPO"'|g' \
-                  -e 's|__IMAGE_TAG__|'"$IMAGE_TAG"'|g' \
-                  -e 's|__GIT_REF__|'"$GIT_REF"'|g' \
-                  -e 's|__ORG__|'"$ORG"'|g' \
-                  -e 's|__REPO__|'"$REPO"'|g' \
-                  -e 's|__BUILD_CONTEXT__|'"$BUILD_CONTEXT"'|g' \
-                  -e 's|__DOCKERFILE__|'"$DOCKERFILE"'|g' \
-                  -e 's|__GH_SECRET__|'"$GH_SECRET"'|g' \
-                  "$JOB_TEMPLATE" > rendered-kaniko.yaml
+              # 2) Kaniko Job 템플릿 치환
+              sed -e "s|__ACCOUNT_ID__|${ACCOUNT_ID}|g" \
+                  -e "s|__AWS_REGION__|${AWS_REGION}|g" \
+                  -e "s|__ECR_REPO__|${ECR_REPO}|g" \
+                  -e "s|__ORG__|${ORG}|g" \
+                  -e "s|__REPO__|${REPO}|g" \
+                  -e "s|__IMAGE_TAG__|${IMAGE_TAG}|g" \
+                  -e "s|__GIT_REF__|${GIT_COMMIT:-${BRANCH_NAME:-master}}|g" \
+                  -e "s|__GH_BASIC_SECRET__|${GH_SECRET}|g" \
+                  -e "s|__BUILD_CONTEXT__|${BUILD_CONTEXT}|g" \
+                  -e "s|__DOCKERFILE__|${DOCKERFILE}|g" \
+                  infra/job-kaniko-template.yaml > rendered-kaniko.yaml
 
-              kubectl -n "$K8S_NS" apply -f rendered-kaniko.yaml
-              kubectl -n "$K8S_NS" wait --for=condition=complete --timeout=45m job/kaniko-build-"$IMAGE_TAG"
-              kubectl -n "$K8S_NS" logs -l job-name=kaniko-build-"$IMAGE_TAG" --tail=-1
+              # 3) Kaniko Job 실행
+              kubectl -n cicd apply -f rendered-kaniko.yaml
+              kubectl -n cicd wait --for=condition=complete job/kaniko-build-${IMAGE_TAG} --timeout=30m
+              kubectl -n cicd logs -f job/kaniko-build-${IMAGE_TAG} -c kaniko || true
 
-              kubectl -n "$K8S_NS" delete job/kaniko-build-"$IMAGE_TAG" --ignore-not-found
-              kubectl -n "$K8S_NS" delete secret "$GH_SECRET" --ignore-not-found
+              # 4) 정리
+              kubectl -n cicd delete job/kaniko-build-${IMAGE_TAG} --ignore-not-found
+              kubectl -n cicd delete secret "$GH_SECRET" --ignore-not-found
             '''
           }
         }
@@ -128,7 +133,7 @@ spec:
     }
 
     stage('Cleanup workspace') {
-      agent { label 'built-in' }
+      agent any
       steps { cleanWs() }
     }
   }
