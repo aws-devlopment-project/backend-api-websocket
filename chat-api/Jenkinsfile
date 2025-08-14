@@ -1,7 +1,7 @@
 pipeline {
   agent none
   options {
-    disableConcurrentBuilds()
+    // disableConcurrentBuilds() //병렬처리 방지
     buildDiscarder(logRotator(numToKeepStr: '30'))
     timestamps()
   }
@@ -34,6 +34,8 @@ pipeline {
           yaml """
 apiVersion: v1
 kind: Pod
+metadata:
+  namespace: cicd
 spec:
   serviceAccountName: jenkins-sa
   volumes:
@@ -66,7 +68,13 @@ spec:
               SHORT_SHA=$(echo "${GIT_COMMIT:-${BRANCH_NAME:-master}}" | cut -c1-7)
               IMAGE_TAG="build-${BUILD_NUMBER}-${SHORT_SHA}"
               GH_SECRET="gh-basic-ci-${BUILD_NUMBER}"
-
+              
+              cleanup() {
+                kubectl -n cicd delete job/kaniko-build-${IMAGE_TAG} --ignore-not-found
+                kubectl -n cicd delete secret "$GH_SECRET" --ignore-not-found
+              }
+              trap cleanup EXIT
+              
               # 1) GitHub 자격증명 임시 Secret 생성/갱신
               kubectl -n cicd create secret generic "$GH_SECRET" \
                 --from-literal=username="$GH_USER" \
