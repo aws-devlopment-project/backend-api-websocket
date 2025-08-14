@@ -16,17 +16,17 @@ pipeline {
     DOCKERFILE    = 'Dockerfile.websocket'     // ← WS Dockerfile(네가 쓰던 그대로)
     K8S_NS        = 'cicd'
     JOB_TEMPLATE  = 'job-kaniko-template.yaml'
-    GIT_BASIC_ID  = 'jenkinstoken'             // Jenkins Credentials (usernamePassword)
+    GIT_BASIC_ID  = 'jenkinstoken'
   }
 
   stages {
     stage('Prepare') {
-      agent any
+      agent { label 'built-in' }
       steps {
         script {
           sh 'git rev-parse HEAD >/dev/null 2>&1 || true'
           env.SHORT_SHA = sh(returnStdout: true, script: 'echo "${GIT_COMMIT:-${BRANCH_NAME:-master}}" | cut -c1-7').trim()
-          env.IMAGE_TAG = "sha-${env.SHORT_SHA}"                       // ← 변경 포인트 #1
+          env.IMAGE_TAG = "sha-${env.SHORT_SHA}"
           env.GIT_REF   = sh(returnStdout:true, script:'git rev-parse --abbrev-ref HEAD || echo main').trim()
           echo "IMAGE_TAG=${env.IMAGE_TAG}, GIT_REF=${env.GIT_REF}"
         }
@@ -34,7 +34,25 @@ pipeline {
     }
 
     stage('Ensure Write-Back Secret (for Image Updater)') {
-      agent { label 'kubernetes' }
+      agent {
+        kubernetes {
+          label "kubectl-agent-${env.BUILD_NUMBER}"
+          defaultContainer 'kubectl'
+          namespace "${env.K8S_NS}"
+          serviceAccount 'jenkins-sa'
+          yaml """
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: kubectl
+    image: bitnami/kubectl:1.29
+    command:
+    - cat
+    tty: true
+"""
+        }
+      }
       steps {
         container('kubectl') {
           withCredentials([usernamePassword(credentialsId: env.GIT_BASIC_ID,
@@ -42,9 +60,9 @@ pipeline {
                                             passwordVariable: 'GH_PASS')]) {
             sh '''
               set -e
-              kubectl -n '"$K8S_NS"' create secret generic argocd-image-updater-git \
-                --from-literal=username='"$GH_USER"' \
-                --from-literal=password='"$GH_PASS"' \
+              kubectl -n "$K8S_NS" create secret generic argocd-image-updater-git \
+                --from-literal=username="$GH_USER" \
+                --from-literal=password="$GH_PASS" \
                 -o yaml --dry-run=client | kubectl apply -f -
             '''
           }
@@ -53,7 +71,25 @@ pipeline {
     }
 
     stage('Build & Push via Kaniko Job') {
-      agent { label 'kubernetes' }
+      agent {
+        kubernetes {
+          label "kubectl-agent-${env.BUILD_NUMBER}"
+          defaultContainer 'kubectl'
+          namespace "${env.K8S_NS}"
+          serviceAccount 'jenkins-sa'
+          yaml """
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: kubectl
+    image: bitnami/kubectl:1.29
+    command:
+    - cat
+    tty: true
+"""
+        }
+      }
       steps {
         container('kubectl') {
           withCredentials([usernamePassword(credentialsId: env.GIT_BASIC_ID,
@@ -62,9 +98,9 @@ pipeline {
             sh '''
               set -e
               GH_SECRET="gh-basic-ci-${BUILD_NUMBER}"
-              kubectl -n '"$K8S_NS"' create secret generic "$GH_SECRET" \
-                --from-literal=username='"$GH_USER"' \
-                --from-literal=password='"$GH_PASS"' \
+              kubectl -n "$K8S_NS" create secret generic "$GH_SECRET" \
+                --from-literal=username="$GH_USER" \
+                --from-literal=password="$GH_PASS" \
                 -o yaml --dry-run=client | kubectl apply -f -
 
               sed -e 's|__AWS_REGION__|'"$AWS_REGION"'|g' \
@@ -79,12 +115,12 @@ pipeline {
                   -e 's|__GH_SECRET__|'"$GH_SECRET"'|g' \
                   "$JOB_TEMPLATE" > rendered-kaniko.yaml
 
-              kubectl -n '"$K8S_NS"' apply -f rendered-kaniko.yaml
-              kubectl -n '"$K8S_NS"' wait --for=condition=complete --timeout=45m job/kaniko-build-"$IMAGE_TAG"
-              kubectl -n '"$K8S_NS"' logs -l job-name=kaniko-build-"$IMAGE_TAG" --tail=-1
+              kubectl -n "$K8S_NS" apply -f rendered-kaniko.yaml
+              kubectl -n "$K8S_NS" wait --for=condition=complete --timeout=45m job/kaniko-build-"$IMAGE_TAG"
+              kubectl -n "$K8S_NS" logs -l job-name=kaniko-build-"$IMAGE_TAG" --tail=-1
 
-              kubectl -n '"$K8S_NS"' delete job/kaniko-build-"$IMAGE_TAG" --ignore-not-found
-              kubectl -n '"$K8S_NS"' delete secret "$GH_SECRET" --ignore-not-found
+              kubectl -n "$K8S_NS" delete job/kaniko-build-"$IMAGE_TAG" --ignore-not-found
+              kubectl -n "$K8S_NS" delete secret "$GH_SECRET" --ignore-not-found
             '''
           }
         }
@@ -92,7 +128,7 @@ pipeline {
     }
 
     stage('Cleanup workspace') {
-      agent any
+      agent { label 'built-in' }
       steps { cleanWs() }
     }
   }
