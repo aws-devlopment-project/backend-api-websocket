@@ -66,7 +66,7 @@ spec:
             sh '''
               set -e
               SHORT_SHA=$(echo "${GIT_COMMIT:-${BRANCH_NAME:-master}}" | cut -c1-7)
-              IMAGE_TAG="build-${BUILD_NUMBER}-${SHORT_SHA}"
+              IMAGE_TAG="sha-${SHORT_SHA}"
               GH_SECRET="gh-basic-ci-${BUILD_NUMBER}"
               
               cleanup() {
@@ -80,6 +80,12 @@ spec:
                 --from-literal=username="$GH_USER" \
                 --from-literal=password="$GH_PASS" \
                 --dry-run=client -o yaml | kubectl apply -f -
+                
+              # 2) GitHub Write-Back Secret 생성/갱신 (Argocd Image Updater)
+              kubectl -n cicd create secret generic argocd-image-updater-git \
+                --from-literal=username="$GH_USER" \
+                --from-literal=password="$GH_PASS" \
+                -o yaml --dry-run=client | kubectl apply -f -
 
               # 2) 템플릿 치환
               cp infra/job-kaniko-template.yaml /tmp/job.yaml
@@ -102,6 +108,8 @@ spec:
               # 4) 정리
               kubectl -n cicd delete job/kaniko-build-${IMAGE_TAG} --ignore-not-found
               kubectl -n cicd delete secret "$GH_SECRET" --ignore-not-found
+              
+              
             '''
           }
         }
