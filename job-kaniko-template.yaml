@@ -1,4 +1,5 @@
-apiVersion: batch/v1 #test
+
+apiVersion: batch/v1
 kind: Job
 metadata:
   name: kaniko-build-__IMAGE_TAG__
@@ -8,11 +9,6 @@ spec:
   backoffLimit: 0
   template:
     spec:
-      tolerations:
-        - key: nodegroup-role
-          operator: Equal
-          value: cicd
-          effect: NoSchedule
       serviceAccountName: jenkins-sa
       nodeSelector:
         nodegroup-role: cicd
@@ -76,6 +72,7 @@ spec:
               --context=__BUILD_CONTEXT__               # ex) /workspace
               --dockerfile=__DOCKERFILE__               # ex) Dockerfile.websocket
               --destination=__ACCOUNT_ID__.dkr.ecr.__AWS_REGION__.amazonaws.com/__ECR_REPO__:__IMAGE_TAG__
+              --destination=__ACCOUNT_ID__.dkr.ecr.__AWS_REGION__.amazonaws.com/__ECR_REPO__:latest
               --cache=true
               --cache-repo=__ACCOUNT_ID__.dkr.ecr.__AWS_REGION__.amazonaws.com/__ECR_REPO__:buildcache
               --snapshotMode=redo
