@@ -66,7 +66,7 @@ spec:
             sh '''
               set -e
               SHORT_SHA=$(echo "${GIT_COMMIT:-${BRANCH_NAME:-master}}" | cut -c1-7)
-              IMAGE_TAG="build-${BUILD_NUMBER}-${SHORT_SHA}"
+              IMAGE_TAG="sha-${SHORT_SHA}"
               GH_SECRET="gh-basic-ci-${BUILD_NUMBER}"
               
               cleanup() {
