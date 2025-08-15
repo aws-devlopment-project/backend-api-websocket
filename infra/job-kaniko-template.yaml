@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: __JOB_NAME__
+  name: kaniko-build-__IMAGE_TAG__
   namespace: cicd
 spec:
   ttlSecondsAfterFinished: 300
@@ -83,7 +83,6 @@ spec:
             - --context=__BUILD_CONTEXT__         # 보통 /workspace 로 치환
             - --dockerfile=__DOCKERFILE__
             - --destination=__ACCOUNT_ID__.dkr.ecr.__AWS_REGION__.amazonaws.com/__ECR_REPO__:__IMAGE_TAG__
-            - --destination=__ACCOUNT_ID__.dkr.ecr.__AWS_REGION__.amazonaws.com/__ECR_REPO__:latest
             - --cache=true
             - --cache-repo=__ACCOUNT_ID__.dkr.ecr.__AWS_REGION__.amazonaws.com/__ECR_REPO__:buildcache
             - --snapshotMode=redo
@@ -113,3 +112,4 @@ spec:
               mountPath: /kaniko/.docker
             - name: workspace
               mountPath: /workspace
+
