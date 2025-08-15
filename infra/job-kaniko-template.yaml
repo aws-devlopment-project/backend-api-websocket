@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: kaniko-build-__IMAGE_TAG__
+  name: __JOB_NAME__
   namespace: cicd
 spec:
   ttlSecondsAfterFinished: 300
@@ -113,3 +113,4 @@ spec:
               mountPath: /kaniko/.docker
             - name: workspace
               mountPath: /workspace
+
