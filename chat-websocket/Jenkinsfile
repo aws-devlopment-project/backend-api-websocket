@@ -15,6 +15,7 @@ pipeline {
     BUILD_CONTEXT= '/workspace'
     DOCKERFILE   = 'Dockerfile.websocket'     // ← WS Dockerfile(네가 쓰던 그대로)
     GIT_BASIC_ID = 'jenkinstoken'   // Jenkins Credentials (username+password=PAT)
+    SERVICE      = 'chat-ws'
   }
 
   triggers { githubPush() }
