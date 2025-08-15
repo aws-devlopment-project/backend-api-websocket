@@ -9,13 +9,12 @@ pipeline {
   environment {
     AWS_REGION   = 'ap-northeast-2'
     ACCOUNT_ID   = '229816860374'
-    ECR_REPO     = 'chat-websocket'           // ← WS 이미지 리포지토리
+    ECR_REPO     = 'chat-api'
     ORG          = 'aws-devlopment-project'
     REPO         = 'backend-api-websocket'
     BUILD_CONTEXT= '/workspace'
-    DOCKERFILE   = 'Dockerfile.websocket'     // ← WS Dockerfile(네가 쓰던 그대로)
+    DOCKERFILE   = 'Dockerfile.api'
     GIT_BASIC_ID = 'jenkinstoken'   // Jenkins Credentials (username+password=PAT)
-    SERVICE      = 'chat-ws'
   }
 
   triggers { githubPush() }
@@ -84,7 +83,7 @@ spec:
                 --from-literal=username="$GH_USER" \
                 --from-literal=password="$GH_PASS" \
                 --dry-run=client -o yaml | kubectl apply -f -
-              
+                
               # 2) GitHub Write-Back Secret 생성/갱신 (Argocd Image Updater)
               kubectl -n cicd create secret generic argocd-image-updater-git \
                 --from-literal=username="$GH_USER" \
@@ -92,27 +91,30 @@ spec:
                 -o yaml --dry-run=client | kubectl apply -f -
 
               # 2) 템플릿 치환
-              cp infra/job-kaniko-template.yaml /tmp/wsjob.yaml
-              sed -i "s|__ACCOUNT_ID__|${ACCOUNT_ID}|g"                   /tmp/wsjob.yaml
-              sed -i "s|__AWS_REGION__|${AWS_REGION}|g"                   /tmp/wsjob.yaml
-              sed -i "s|__ECR_REPO__|${ECR_REPO}|g"                       /tmp/wsjob.yaml
-              sed -i "s|__ORG__|${ORG}|g"                                 /tmp/wsjob.yaml
-              sed -i "s|__REPO__|${REPO}|g"                               /tmp/wsjob.yaml
-              sed -i "s|__IMAGE_TAG__|${IMAGE_TAG}|g"                     /tmp/wsjob.yaml
-              sed -i "s|__GIT_REF__|${GIT_COMMIT:-${BRANCH_NAME:-master}}|g" /tmp/wsjob.yaml
-              sed -i "s|__GH_BASIC_SECRET__|${GH_SECRET}|g"               /tmp/wsjob.yaml
-              sed -i "s|__BUILD_CONTEXT__|${BUILD_CONTEXT}|g"             /tmp/wsjob.yaml
-              sed -i "s|__DOCKERFILE__|${DOCKERFILE}|g"                   /tmp/wsjob.yaml
-              sed -i "s|__JOB_NAME__|${JOB_NAME}|g"                       /tmp/wsjob.yaml
+              cp infra/job-kaniko-template.yaml /tmp/apijob.yaml
+              sed -i "s|__ACCOUNT_ID__|${ACCOUNT_ID}|g"                   /tmp/apijob.yaml
+              sed -i "s|__AWS_REGION__|${AWS_REGION}|g"                   /tmp/apijob.yaml
+
+              sed -i "s|__ECR_REPO__|${ECR_REPO}|g"                       /tmp/apijob.yaml
+              sed -i "s|__ORG__|${ORG}|g"                                 /tmp/apijob.yaml
+              sed -i "s|__REPO__|${REPO}|g"                               /tmp/apijob.yaml
+              sed -i "s|__IMAGE_TAG__|${IMAGE_TAG}|g"                     /tmp/apijob.yaml
+              sed -i "s|__GIT_REF__|${GIT_COMMIT:-${BRANCH_NAME:-master}}|g" /tmp/apijob.yaml
+              sed -i "s|__GH_BASIC_SECRET__|${GH_SECRET}|g"               /tmp/apijob.yaml
+              sed -i "s|__BUILD_CONTEXT__|${BUILD_CONTEXT}|g"             /tmp/apijob.yaml
+              sed -i "s|__DOCKERFILE__|${DOCKERFILE}|g"                   /tmp/apijob.yaml
+              sed -i "s|__JOB_NAME__|${JOB_NAME}|g"                       /tmp/apijob.yaml
 
               # 3) Job 실행/대기/로그
-              kubectl -n cicd replace --force -f /tmp/wsjob.yaml
-              kubectl -n cicd wait --for=condition=complete job/kaniko-build-${IMAGE_TAG} --timeout=30m
-              kubectl -n cicd logs -f job/kaniko-build-${IMAGE_TAG} -c kaniko || true
+              kubectl -n cicd wait --for=condition=complete job/"${JOB_NAME}" --timeout=30m 
+              kubectl -n cicd logs -f job/"${JOB_NAME}" -c kaniko || true 
+              kubectl -n cicd replace --force job/"${JOB_NAME}" --ignore-not-found
 
               # 4) 정리
               kubectl -n cicd delete job/kaniko-build-${IMAGE_TAG} --ignore-not-found
               kubectl -n cicd delete secret "$GH_SECRET" --ignore-not-found
+              
+              
             '''
           }
         }
