@@ -1,7 +1,6 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: __JOB_NAME__
   namespace: cicd
 spec:
   ttlSecondsAfterFinished: 300
