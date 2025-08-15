@@ -65,10 +65,8 @@ spec:
                                             passwordVariable: 'GH_PASS')]) {
             sh '''
               set -e
-              SERVICE="${ECR_REPO}"
               SHORT_SHA=$(echo "${GIT_COMMIT:-${BRANCH_NAME:-master}}" | cut -c1-7)
-              IMAGE_TAG="sha-${SHORT_SHA}"
-              JOB_NAME="kaniko-build-${SERVICE}-${IMAGE_TAG}-${BUILD_NUMBER}"
+              IMAGE_TAG="build-${BUILD_NUMBER}-${SHORT_SHA}"
               GH_SECRET="gh-basic-ci-${BUILD_NUMBER}"
               
               cleanup() {
@@ -82,12 +80,6 @@ spec:
                 --from-literal=username="$GH_USER" \
                 --from-literal=password="$GH_PASS" \
                 --dry-run=client -o yaml | kubectl apply -f -
-              
-              # 2) GitHub Write-Back Secret 생성/갱신 (Argocd Image Updater)
-              kubectl -n cicd create secret generic argocd-image-updater-git \
-                --from-literal=username="$GH_USER" \
-                --from-literal=password="$GH_PASS" \
-                -o yaml --dry-run=client | kubectl apply -f -
 
               # 2) 템플릿 치환
               cp infra/job-kaniko-template.yaml /tmp/job.yaml
@@ -96,7 +88,6 @@ spec:
               sed -i "s|__ECR_REPO__|${ECR_REPO}|g"                       /tmp/job.yaml
               sed -i "s|__ORG__|${ORG}|g"                                 /tmp/job.yaml
               sed -i "s|__REPO__|${REPO}|g"                               /tmp/job.yaml
-              sed -i "s|__JOB_NAME__|${JOB_NAME}|g"                       /tmp/job.yaml
               sed -i "s|__IMAGE_TAG__|${IMAGE_TAG}|g"                     /tmp/job.yaml
               sed -i "s|__GIT_REF__|${GIT_COMMIT:-${BRANCH_NAME:-master}}|g" /tmp/job.yaml
               sed -i "s|__GH_BASIC_SECRET__|${GH_SECRET}|g"               /tmp/job.yaml
