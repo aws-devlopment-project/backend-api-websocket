@@ -97,7 +97,7 @@ spec:
 
 
               # 3) Job 실행/대기/로그
-              kubectl -n cicd replace -f /tmp/apijob.yaml
+              kubectl -n cicd replace --force -f /tmp/apijob.yaml
               kubectl -n cicd wait --for=condition=complete job/kaniko-build-${IMAGE_TAG} --timeout=30m
               kubectl -n cicd logs -f job/kaniko-build-${IMAGE_TAG} -c kaniko || true
 
