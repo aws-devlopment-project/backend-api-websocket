@@ -1,6 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
+  name: kaniko-build-__IMAGE_TAG__
   namespace: cicd
 spec:
   ttlSecondsAfterFinished: 300
