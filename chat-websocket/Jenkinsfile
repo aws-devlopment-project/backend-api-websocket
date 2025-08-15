@@ -65,8 +65,10 @@ spec:
                                             passwordVariable: 'GH_PASS')]) {
             sh '''
               set -e
+              SERVICE="${ECR_REPO}"
               SHORT_SHA=$(echo "${GIT_COMMIT:-${BRANCH_NAME:-master}}" | cut -c1-7)
               IMAGE_TAG="sha-${SHORT_SHA}"
+              JOB_NAME="kaniko-build-${SERVICE}-${IMAGE_TAG}-${BUILD_NUMBER}"
               GH_SECRET="gh-basic-ci-${BUILD_NUMBER}"
               
               cleanup() {
@@ -94,6 +96,7 @@ spec:
               sed -i "s|__ECR_REPO__|${ECR_REPO}|g"                       /tmp/job.yaml
               sed -i "s|__ORG__|${ORG}|g"                                 /tmp/job.yaml
               sed -i "s|__REPO__|${REPO}|g"                               /tmp/job.yaml
+              sed -i "s|__JOB_NAME__|${JOB_NAME}|g"                       /tmp/job.yaml
               sed -i "s|__IMAGE_TAG__|${IMAGE_TAG}|g"                     /tmp/job.yaml
               sed -i "s|__GIT_REF__|${GIT_COMMIT:-${BRANCH_NAME:-master}}|g" /tmp/job.yaml
               sed -i "s|__GH_BASIC_SECRET__|${GH_SECRET}|g"               /tmp/job.yaml
