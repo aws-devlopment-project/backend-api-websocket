@@ -90,21 +90,21 @@ spec:
                 -o yaml --dry-run=client | kubectl apply -f -
 
               # 2) 템플릿 치환
-              cp infra/job-kaniko-template.yaml /tmp/api_job.yaml
-              sed -i "s|__ACCOUNT_ID__|${ACCOUNT_ID}|g"                   /tmp/api_job.yaml
-              sed -i "s|__AWS_REGION__|${AWS_REGION}|g"                   /tmp/api_job.yaml
-              sed -i "s|__JOB_NAME__|${JOB_NAME}|g"                       /tmp/api_job.yaml
-              sed -i "s|__ECR_REPO__|${ECR_REPO}|g"                       /tmp/api_job.yaml
-              sed -i "s|__ORG__|${ORG}|g"                                 /tmp/api_job.yaml
-              sed -i "s|__REPO__|${REPO}|g"                               /tmp/api_job.yaml
-              sed -i "s|__IMAGE_TAG__|${IMAGE_TAG}|g"                     /tmp/api_job.yaml
-              sed -i "s|__GIT_REF__|${GIT_COMMIT:-${BRANCH_NAME:-master}}|g" /tmp/api_job.yaml
-              sed -i "s|__GH_BASIC_SECRET__|${GH_SECRET}|g"               /tmp/api_job.yaml
-              sed -i "s|__BUILD_CONTEXT__|${BUILD_CONTEXT}|g"             /tmp/api_job.yaml
-              sed -i "s|__DOCKERFILE__|${DOCKERFILE}|g"                   /tmp/api_job.yaml
+              cp infra/job-kaniko-template.yaml /tmp/apijob.yaml
+              sed -i "s|__ACCOUNT_ID__|${ACCOUNT_ID}|g"                   /tmp/apijob.yaml
+              sed -i "s|__AWS_REGION__|${AWS_REGION}|g"                   /tmp/apijob.yaml
+              sed -i "s|__JOB_NAME__|${JOB_NAME}|g"                       /tmp/apijob.yaml
+              sed -i "s|__ECR_REPO__|${ECR_REPO}|g"                       /tmp/apijob.yaml
+              sed -i "s|__ORG__|${ORG}|g"                                 /tmp/apijob.yaml
+              sed -i "s|__REPO__|${REPO}|g"                               /tmp/apijob.yaml
+              sed -i "s|__IMAGE_TAG__|${IMAGE_TAG}|g"                     /tmp/apijob.yaml
+              sed -i "s|__GIT_REF__|${GIT_COMMIT:-${BRANCH_NAME:-master}}|g" /tmp/apijob.yaml
+              sed -i "s|__GH_BASIC_SECRET__|${GH_SECRET}|g"               /tmp/apijob.yaml
+              sed -i "s|__BUILD_CONTEXT__|${BUILD_CONTEXT}|g"             /tmp/apijob.yaml
+              sed -i "s|__DOCKERFILE__|${DOCKERFILE}|g"                   /tmp/apijob.yaml
 
               # 3) Job 실행/대기/로그
-              kubectl -n cicd apply -f /tmp/api_job.yaml
+              kubectl -n cicd apply -f /tmp/apijob.yaml
               kubectl -n cicd wait --for=condition=complete job/kaniko-build-${IMAGE_TAG} --timeout=30m
               kubectl -n cicd logs -f job/kaniko-build-${IMAGE_TAG} -c kaniko || true
 
