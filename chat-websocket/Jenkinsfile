@@ -9,7 +9,7 @@ pipeline {
   environment {
     AWS_REGION   = 'ap-northeast-2'
     ACCOUNT_ID   = '229816860374'
-    ECR_REPO     = 'chat-api'
+    ECR_REPO     = 'chat-websocket'           
     ORG          = 'aws-devlopment-project'
     REPO         = 'backend-api-websocket'
     BUILD_CONTEXT= '/workspace'
@@ -91,19 +91,18 @@ spec:
                 -o yaml --dry-run=client | kubectl apply -f -
 
               # 2) 템플릿 치환
-              cp infra/job-kaniko-template.yaml /tmp/apijob.yaml
-              sed -i "s|__ACCOUNT_ID__|${ACCOUNT_ID}|g"                   /tmp/apijob.yaml
-              sed -i "s|__AWS_REGION__|${AWS_REGION}|g"                   /tmp/apijob.yaml
-
-              sed -i "s|__ECR_REPO__|${ECR_REPO}|g"                       /tmp/apijob.yaml
-              sed -i "s|__ORG__|${ORG}|g"                                 /tmp/apijob.yaml
-              sed -i "s|__REPO__|${REPO}|g"                               /tmp/apijob.yaml
-              sed -i "s|__IMAGE_TAG__|${IMAGE_TAG}|g"                     /tmp/apijob.yaml
-              sed -i "s|__GIT_REF__|${GIT_COMMIT:-${BRANCH_NAME:-master}}|g" /tmp/apijob.yaml
-              sed -i "s|__GH_BASIC_SECRET__|${GH_SECRET}|g"               /tmp/apijob.yaml
-              sed -i "s|__BUILD_CONTEXT__|${BUILD_CONTEXT}|g"             /tmp/apijob.yaml
-              sed -i "s|__DOCKERFILE__|${DOCKERFILE}|g"                   /tmp/apijob.yaml
-              sed -i "s|__JOB_NAME__|${JOB_NAME}|g"                       /tmp/apijob.yaml
+              cp infra/job-kaniko-template.yaml /tmp/ws.yaml
+              sed -i "s|__ACCOUNT_ID__|${ACCOUNT_ID}|g"                   /tmp/ws.yaml
+              sed -i "s|__AWS_REGION__|${AWS_REGION}|g"                   /tmp/ws.yaml
+              sed -i "s|__ECR_REPO__|${ECR_REPO}|g"                       /tmp/ws.yaml
+              sed -i "s|__ORG__|${ORG}|g"                                 /tmp/ws.yaml
+              sed -i "s|__REPO__|${REPO}|g"                               /tmp/ws.yaml
+              sed -i "s|__IMAGE_TAG__|${IMAGE_TAG}|g"                     /tmp/ws.yaml
+              sed -i "s|__GIT_REF__|${GIT_COMMIT:-${BRANCH_NAME:-master}}|g" /tmp/ws.yaml
+              sed -i "s|__GH_BASIC_SECRET__|${GH_SECRET}|g"               /tmp/ws.yaml
+              sed -i "s|__BUILD_CONTEXT__|${BUILD_CONTEXT}|g"             /tmp/ws.yaml
+              sed -i "s|__DOCKERFILE__|${DOCKERFILE}|g"                   /tmp/ws.yaml
+              sed -i "s|__JOB_NAME__|${JOB_NAME}|g"                       /tmp/ws.yaml
 
               # 3) Job 실행/대기/로그
               kubectl -n cicd wait --for=condition=complete job/"${JOB_NAME}" --timeout=30m 
